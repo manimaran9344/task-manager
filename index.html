@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Task Manager</title>
+
+    <style>
+        body {
+            font-family: 'Segoe UI';
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            width: 400px;
+            padding: 25px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(15px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+            color: white;
+        }
+
+        h2 {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            margin: 6px 0;
+            border-radius: 8px;
+            border: none;
+            outline: none;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            margin-top: 8px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+
+        .btn-register {
+            background: #ff7eb3;
+        }
+
+        .btn-login {
+            background: #4facfe;
+        }
+
+        .btn-add {
+            background: #43e97b;
+            color: black;
+        }
+
+        button:hover {
+            transform: scale(1.05);
+            opacity: 0.9;
+        }
+
+        hr {
+            margin: 15px 0;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        li {
+            background: rgba(255,255,255,0.2);
+            padding: 10px;
+            margin-top: 8px;
+            border-radius: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: 0.3s;
+        }
+
+        li:hover {
+            transform: scale(1.03);
+        }
+
+        .completed {
+            text-decoration: line-through;
+            opacity: 0.6;
+        }
+
+        .actions button {
+            width: auto;
+            margin-left: 5px;
+            padding: 5px 8px;
+            border-radius: 5px;
+        }
+
+        .done {
+            background: #00f2fe;
+        }
+
+        .delete {
+            background: #ff4b5c;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <h2>✨ Task Manager</h2>
+
+    <input id="username" placeholder="Username">
+    <input id="password" type="password" placeholder="Password">
+
+    <button class="btn-register" onclick="register()">Register</button>
+    <button class="btn-login" onclick="login()">Login</button>
+
+    <hr>
+
+    <input id="taskInput" placeholder="Enter task...">
+    <button class="btn-add" onclick="addTask()">Add Task</button>
+
+    <button onclick="getTasks()">Refresh</button>
+
+    <ul id="taskList"></ul>
+
+</div>
+
+<script>
+const API = "http://127.0.0.1:8000";
+
+// REGISTER
+async function register() {
+    const res = await fetch(API + "/register", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+            username: username.value,
+            password: password.value
+        })
+    });
+
+    const data = await res.json();
+    alert(data.message || data.detail);
+}
+
+// LOGIN
+async function login() {
+    const res = await fetch(API + "/login", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+            username: username.value,
+            password: password.value
+        })
+    });
+
+    const data = await res.json();
+
+    localStorage.setItem("token", data.access_token);
+    alert("Login successful 🎉");
+}
+
+// ADD TASK
+async function addTask() {
+    await fetch(API + "/tasks", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + localStorage.getItem("token")
+        },
+        body: JSON.stringify({ title: taskInput.value })
+    });
+
+    getTasks();
+}
+
+// GET TASKS
+async function getTasks() {
+    const res = await fetch(API + "/tasks", {
+        headers: {
+            "Authorization": "Bearer " + localStorage.getItem("token")
+        }
+    });
+
+    const tasks = await res.json();
+
+    const list = document.getElementById("taskList");
+    list.innerHTML = "";
+
+    if (!Array.isArray(tasks)) {
+        alert("Login required");
+        return;
+    }
+
+    tasks.forEach(task => {
+        const li = document.createElement("li");
+
+        const text = document.createElement("span");
+        text.innerText = task.title;
+
+        if (task.completed) {
+            text.classList.add("completed");
+        }
+
+        const actions = document.createElement("div");
+
+        const done = document.createElement("button");
+        done.innerText = "✔";
+        done.className = "done";
+        done.onclick = () => completeTask(task.id);
+
+        const del = document.createElement("button");
+        del.innerText = "❌";
+        del.className = "delete";
+        del.onclick = () => deleteTask(task.id);
+
+        actions.appendChild(done);
+        actions.appendChild(del);
+
+        li.appendChild(text);
+        li.appendChild(actions);
+
+        list.appendChild(li);
+    });
+}
+
+// COMPLETE
+async function completeTask(id) {
+    await fetch(API + "/tasks/" + id, {
+        method: "PUT",
+        headers: {
+            "Authorization": "Bearer " + localStorage.getItem("token")
+        }
+    });
+
+    getTasks();
+}
+
+// DELETE
+async function deleteTask(id) {
+    await fetch(API + "/tasks/" + id, {
+        method: "DELETE",
+        headers: {
+            "Authorization": "Bearer " + localStorage.getItem("token")
+        }
+    });
+
+    getTasks();
+}
+</script>
+
+</body>
+</html>
